@@ -1,0 +1,29 @@
+# FastAPI
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# Database
+SQLAlchemy==2.0.35
+psycopg[binary]==3.2.3
+
+# Validation
+pydantic==2.9.2
+pydantic-settings==2.5.2
+
+# Environment
+python-dotenv==1.0.1
+
+# Authentication
+PyJWT==2.9.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.9
+python-jose[cryptography]==3.3.0
+
+# Http
+httpx==0.72.2
+
+# Email
+email-validator==2.1.0
+
+# Datetime
+pytz
