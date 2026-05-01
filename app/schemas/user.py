@@ -79,7 +79,6 @@ class UserTestResultReport(BaseModel):
 class UserReportResponse(BaseModel):
     """Schema de un usuario con sus tests para el reporte admin"""
     user_id: int
-    name: str
-    lastname: str
+    username: str
     email: str
     tests: List[UserTestResultReport]
