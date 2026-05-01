@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
+from datetime import date
 
 from app.database import get_db
 from app.models import User
-from app.schemas.user import UserResponse, UserUpdate, UserChangePassword, UserDetailResponse
+from app.schemas.user import UserResponse, UserUpdate, UserChangePassword, UserDetailResponse, BurnoutStatsResponse, UserReportResponse
 from app.utils.auth import hash_password, verify_password
 from app.dependencies import get_current_active_user, require_admin
+from app.crud import tests as crud_tests
 
 
 router = APIRouter()
@@ -117,6 +119,35 @@ def change_my_password(
 
 
 # ==================== ADMIN ENDPOINTS ====================
+
+@router.get("/reports/tests", response_model=List[UserReportResponse])
+def get_users_tests_report(
+    date_from: Optional[date] = Query(None, description="Filtrar desde esta fecha (YYYY-MM-DD)"),
+    date_to: Optional[date] = Query(None, description="Filtrar hasta esta fecha (YYYY-MM-DD)"),
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Reporte de todos los usuarios con sus tests completados y resultado de cada uno.
+
+    **Solo administradores.**
+    Acepta filtros opcionales: date_from y date_to (formato YYYY-MM-DD).
+    """
+    return crud_tests.get_users_tests_report(db, date_from, date_to)
+
+
+@router.get("/stats/burnout", response_model=BurnoutStatsResponse)
+def get_burnout_stats(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Retorna estadísticas globales de resultados de burnout.
+
+    **Solo administradores.**
+    """
+    return crud_tests.get_burnout_stats(db)
+
 
 @router.get("", response_model=List[UserResponse])
 def list_users(
