@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict
 from fastapi import HTTPException, status
-from datetime import datetime
+from datetime import datetime, date
 import pytz
 
 from app.models.test import Test
@@ -19,9 +19,23 @@ def get_test_by_id(db: Session, test_id: int) -> Optional[Test]:
     return db.query(Test).filter(Test.id == test_id).first()
 
 
-def get_user_tests(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[Test]:
-    """Obtiene todos los tests de un usuario con paginación"""
-    return db.query(Test).filter(Test.user_id == user_id).order_by(Test.created_at.desc()).offset(skip).limit(limit).all()
+def get_user_tests(
+    db: Session,
+    user_id: int,
+    skip: int = 0,
+    limit: int = 100,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None
+) -> List[Test]:
+    """Obtiene todos los tests de un usuario con paginación y filtro opcional por fecha."""
+    query = db.query(Test).filter(Test.user_id == user_id)
+
+    if date_from:
+        query = query.filter(Test.created_at >= datetime.combine(date_from, datetime.min.time()))
+    if date_to:
+        query = query.filter(Test.created_at <= datetime.combine(date_to, datetime.max.time()))
+
+    return query.order_by(Test.created_at.desc()).offset(skip).limit(limit).all()
 
 
 def create_test(db: Session, user_id: int, test_data: TestCreate) -> Test:
@@ -224,6 +238,79 @@ def assign_recommendations(db: Session, test_result_id: int, prediction: Predict
 def get_test_result(db: Session, test_id: int) -> Optional[TestResult]:
     """Obtiene el resultado de un test"""
     return db.query(TestResult).filter(TestResult.test_id == test_id).first()
+
+
+def get_users_tests_report(
+    db: Session,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None
+) -> list:
+    """
+    Retorna todos los usuarios con sus tests completados y resultado de cada uno.
+    Filtra por rango de fechas sobre completed_at si se proporcionan.
+    Solo incluye tests con status COMPLETED.
+    """
+    from app.models.user import User
+
+    query = db.query(Test, TestResult, User).outerjoin(
+        TestResult, TestResult.test_id == Test.id
+    ).join(
+        User, User.id == Test.user_id
+    ).filter(Test.status == TestStatus.COMPLETED)
+
+    if date_from:
+        query = query.filter(Test.completed_at >= datetime.combine(date_from, datetime.min.time()))
+    if date_to:
+        query = query.filter(Test.completed_at <= datetime.combine(date_to, datetime.max.time()))
+
+    rows = query.order_by(User.id, Test.completed_at.desc()).all()
+
+    # Agrupar por usuario
+    users_map: dict = {}
+    for test, result, user in rows:
+        if user.id not in users_map:
+            users_map[user.id] = {
+                "user_id": user.id,
+                "name": user.name,
+                "lastname": user.lastname,
+                "email": user.email,
+                "tests": []
+            }
+        users_map[user.id]["tests"].append({
+            "test_id": test.id,
+            "completed_at": test.completed_at,
+            "prediction": result.prediction if result else None,
+            "probability": result.probability if result else None,
+        })
+
+    return list(users_map.values())
+
+
+def get_burnout_stats(db: Session) -> dict:
+    """
+    Retorna estadísticas globales de resultados de burnout.
+    Cuenta todos los test_results agrupados por prediction.
+    """
+    from sqlalchemy import func
+
+    results = db.query(
+        TestResult.prediction,
+        func.count(TestResult.id).label("count")
+    ).group_by(TestResult.prediction).all()
+
+    stats = {row.prediction: row.count for row in results}
+
+    burnout_yes = stats.get(PredictionResult.S, 0)
+    burnout_no = stats.get(PredictionResult.N, 0)
+    total = burnout_yes + burnout_no
+
+    return {
+        "total_completed_tests": total,
+        "burnout_yes": burnout_yes,
+        "burnout_no": burnout_no,
+        "burnout_yes_percentage": round((burnout_yes / total * 100), 2) if total > 0 else 0.0,
+        "burnout_no_percentage": round((burnout_no / total * 100), 2) if total > 0 else 0.0,
+    }
 
 
 def delete_test(db: Session, test_id: int) -> bool:
