@@ -271,8 +271,7 @@ def get_users_tests_report(
         if user.id not in users_map:
             users_map[user.id] = {
                 "user_id": user.id,
-                "name": user.name,
-                "lastname": user.lastname,
+                "username": user.username,
                 "email": user.email,
                 "tests": []
             }
