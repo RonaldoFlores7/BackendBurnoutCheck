@@ -74,7 +74,10 @@ class UserTestResultReport(BaseModel):
     completed_at: Optional[datetime]
     prediction: Optional[PredictionResult]
     probability: Optional[float]
-
+    ciclo: int
+    genero: str
+    facultad: str
+    practicasprepro: str
 
 class UserReportResponse(BaseModel):
     """Schema de un usuario con sus tests para el reporte admin"""
