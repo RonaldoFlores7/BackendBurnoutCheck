@@ -280,6 +280,10 @@ def get_users_tests_report(
             "completed_at": test.completed_at,
             "prediction": result.prediction if result else None,
             "probability": result.probability if result else None,
+            "ciclo": test.ciclo,
+            "genero": test.genero,
+            "facultad": test.facultad,
+            "practicasprepro": test.practicasprepro,
         })
 
     return list(users_map.values())
